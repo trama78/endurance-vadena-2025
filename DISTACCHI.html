@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Grafico Interattivo</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 15px; font-size: 18px; }
+    .sliderRow { display:flex; align-items:center; gap:10px; }
+    input[type=range] { flex:1; margin: 10px 0; }
+    .valore { min-width:60px; text-align:right; font-weight:bold; }
+    label { display: block; padding: 10px; font-size: 18px; background: #f0f0f0; margin-bottom: 5px; border-radius: 6px; }
+    input[type=checkbox] { transform: scale(1.5); margin-right: 10px; }
+    #grafico { width: 100%; height: 400px; }
+    button { font-size: 16px; padding: 6px 10px; margin: 5px; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>Grafico da CSV fisso su GitHub</h2>
+
+  <div id="grafico"></div>
+
+  <!-- Pulsanti di controllo -->
+  <button onclick="autoscale()">Autoscale (vista completa)</button>
+  <button onclick="zoomTempi()">tempi fra 58.0 e 1:05</button>
+
+  <!-- Slider per assi -->
+  <h3>Limiti asse X</h3>
+  <div class="sliderRow">
+    Min: <input type="range" id="xmin" step="1" oninput="aggiornaAssi()">
+    <span class="valore" id="xminVal"></span>
+  </div>
+  <div class="sliderRow">
+    Max: <input type="range" id="xmax" step="1" oninput="aggiornaAssi()">
+    <span class="valore" id="xmaxVal"></span>
+  </div>
+
+  <h3>Limiti asse Y</h3>
+  <div class="sliderRow">
+    Min: <input type="range" id="ymin" step="1" oninput="aggiornaAssi()">
+    <span class="valore" id="yminVal"></span>
+  </div>
+  <div class="sliderRow">
+    Max: <input type="range" id="ymax" step="1" oninput="aggiornaAssi()">
+    <span class="valore" id="ymaxVal"></span>
+  </div>
+
+  <!-- Checkbox dinamici -->
+  <h3>Serie da mostrare</h3>
+  <div>
+    <button onclick="selezionaTutte(true)">Seleziona tutte</button>
+    <button onclick="selezionaTutte(false)">Deseleziona tutte</button>
+  </div>
+  <div id="checkboxContainer"></div>
+
+  <script>
+    var tracce = [];
+    var layout;
+    var xValues = [];
+    var yValues = [];
+
+    // URL del CSV fisso nella tua repository GitHub Pages
+    var csvUrl = "https://trama78.github.io/endurance-vadena-2025/DISTACCHI.csv";
+
+    // Carica CSV direttamente da URL
+    Papa.parse(csvUrl, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: true,
+      complete: function(results) {
+        var dati = results.data;
+        var headers = results.meta.fields;
+
+        xValues = dati.map(row => row[headers[0]]).filter(v => isFinite(v));
+
+        tracce = [];
+        yValues = [];
+        for (var i = 1; i < headers.length; i++) {
+          var serie = dati.map(row => row[headers[i]]).filter(v => isFinite(v));
+          tracce.push({
+            x: xValues.slice(0, serie.length),
+            y: serie,
+            mode: 'lines+markers',
+            name: headers[i]
+          });
+          yValues = yValues.concat(serie);
+        }
+
+        var xMin = Math.min(...xValues);
+        var xMax = Math.max(...xValues);
+        var yMin = Math.min(...yValues);
+        var yMax = Math.max(...yValues);
+
+        layout = {
+          title: 'Grafico interattivo da CSV',
+          xaxis: { title: headers[0], range: [xMin, xMax] },
+          yaxis: { title: 'Valori', range: [yMin, yMax] }
+        };
+
+        Plotly.newPlot('grafico', tracce, layout);
+
+        // Imposta slider dinamici
+        setSlider("xmin", xMin, xMax, xMin);
+        setSlider("xmax", xMin, xMax, xMax);
+        setSlider("ymin", yMin, yMax, yMin);
+        setSlider("ymax", yMin, yMax, yMax);
+
+        // Checkbox dinamici
+        var container = document.getElementById("checkboxContainer");
+        container.innerHTML = "";
+        tracce.forEach((t, idx) => {
+          var label = document.createElement("label");
+          var checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = true;
+          checkbox.dataset.index = idx;
+          checkbox.onchange = aggiornaSerie;
+          label.appendChild(checkbox);
+          label.appendChild(document.createTextNode(t.name));
+          container.appendChild(label);
+        });
+      }
+    });
+
+    function setSlider(id, min, max, val) {
+      var slider = document.getElementById(id);
+      slider.min = min;
+      slider.max = max;
+      slider.value = val;
+      document.getElementById(id+"Val").textContent = val;
+    }
+
+    function autoscale() {
+      var xMin = Math.min(...xValues);
+      var xMax = Math.max(...xValues);
+      var yMin = Math.min(...yValues);
+      var yMax = Math.max(...yValues);
+
+      Plotly.relayout('grafico', {
+        'xaxis.range': [xMin, xMax],
+        'yaxis.range': [yMin, yMax]
+      });
+
+      // Re-check slider limiti
+      setSlider("xmin", xMin, xMax, xMin);
+      setSlider("xmax", xMin, xMax, xMax);
+      setSlider("ymin", yMin, yMax, yMin);
+      setSlider("ymax", yMin, yMax, yMax);
+    }
+
+    function zoomTempi() {
+      Plotly.relayout('grafico', {
+        'yaxis.range': [58, 65]
+      });
+      setSlider("ymin", 58, 65, 58);
+      setSlider("ymax", 58, 65, 65);
+    }
+
+    function aggiornaAssi() {
+      var xmin = parseFloat(document.getElementById("xmin").value);
+      var xmax = parseFloat(document.getElementById("xmax").value);
+      var ymin = parseFloat(document.getElementById("ymin").value);
+      var ymax = parseFloat(document.getElementById("ymax").value);
+
+      document.getElementById("xminVal").textContent = xmin;
+      document.getElementById("xmaxVal").textContent = xmax;
+      document.getElementById("yminVal").textContent = ymin;
+      document.getElementById("ymaxVal").textContent = ymax;
+
+      Plotly.relayout('grafico', {
+        'xaxis.range': [xmin, xmax],
+        'yaxis.range': [ymin, ymax]
+      });
+    }
+
+    function aggiornaSerie() {
+      var checkboxes = document.querySelectorAll("#checkboxContainer input[type=checkbox]");
+      var nuoveSerie = [];
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          nuoveSerie.push(tracce[cb.dataset.index]);
+        }
+      });
+      Plotly.newPlot('grafico', nuoveSerie, layout);
+    }
+
+    function selezionaTutte(flag) {
+      var checkboxes = document.querySelectorAll("#checkboxContainer input[type=checkbox]");
+      checkboxes.forEach(cb => cb.checked = flag);
+      aggiornaSerie();
+    }
+  </script>
+</body>
+</html>
