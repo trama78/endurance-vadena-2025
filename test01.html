@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Grafico Interattivo da CSV</title>
+  <!-- Libreria Plotly -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <!-- Libreria PapaParse per leggere CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+  <h2>Grafico interattivo da dati Excel (CSV)</h2>
+  <div id="grafico"></div>
+
+  <script>
+    // Carica il file CSV (esportato da Excel)
+    Papa.parse("dati.csv", {
+      download: true,
+      header: true, // usa la prima riga come intestazioni
+      complete: function(results) {
+        var dati = results.data;
+
+        // Estraggo le colonne dal CSV
+        var x = dati.map(row => row["X"]);   // colonna X
+        var y1 = dati.map(row => row["SerieA"]); // colonna SerieA
+        var y2 = dati.map(row => row["SerieB"]); // colonna SerieB
+
+        // Definisco le tracce
+        var trace1 = {
+          x: x,
+          y: y1,
+          mode: 'lines+markers',
+          name: 'Serie A'
+        };
+
+        var trace2 = {
+          x: x,
+          y: y2,
+          mode: 'lines+markers',
+          name: 'Serie B'
+        };
+
+        var data = [trace1, trace2];
+
+        var layout = {
+          title: 'Grafico interattivo da CSV',
+          xaxis: { title: 'X' },
+          yaxis: { title: 'Valori' }
+        };
+
+        Plotly.newPlot('grafico', data, layout);
+      }
+    });
+  </script>
+</body>
+</html>
